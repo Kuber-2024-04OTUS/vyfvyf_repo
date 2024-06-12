@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+       maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:stable
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - mountPath: /usr/share/nginx/html
+          name: html
+        lifecycle:
+          preStop:
+            exec:
+              command:
+                - "rm"
+                - "/usr/share/nginx/html/index.html"
+        readinessProbe:
+          httpGet:
+            path: /index.html
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      initContainers:
+      - name: install
+        image: busybox:stable
+        command:
+        - wget
+        - "-O"
+        - "/init/index.html"
+        - http://github.com
+        volumeMounts:
+        - name: html
+          mountPath: "/init"
+      volumes:
+      - name: html
+        emptyDir:
+          sizeLimit: 10Mi
