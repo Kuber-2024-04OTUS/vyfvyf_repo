@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+       maxUnavailable: {{ .Values.maxUnavailable }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      containers:
+        - name: {{ .Release.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /homework
+              name: {{ .Release.Name }}-html
+            - mountPath: /etc/nginx/conf.d/
+              name: {{ .Release.Name }}-nginx-conf
+            - mountPath: /homework/conf
+              name: {{ .Release.Name }}-custom-files
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - "rm"
+                  - "/homework/index.html"
+          {{- if .Values.readinessProbe.enabled }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          {{- end }}
+      initContainers:
+        - name: install
+          image: busybox:stable
+          command:
+          - wget
+          - "-O"
+          - "/init/index.html"
+          - {{- toYaml .Values.myUrl | nindent 12 }}
+          volumeMounts:
+          - name: {{ .Release.Name }}-html
+            mountPath: "/init"
+        - name: get-metrics
+          image: curlimages/curl:latest
+          command: ["sh", "-c", "curl --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt --header \"Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\" -o /init/metrics.html https://${KUBERNETES_SERVICE_HOST}/metrics"]
+          volumeMounts:
+          - name: {{ .Release.Name }}-html
+            mountPath: "/init"
+      volumes:
+        - name: {{ .Release.Name }}-nginx-conf
+          configMap:
+            name: {{ .Release.Name }}-nginx-conf
+        - name: {{ .Release.Name }}-html
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-html-pvc
+        - name: {{ .Release.Name }}-custom-files
+          configMap:
+            name: {{ .Release.Name }}-custom-files

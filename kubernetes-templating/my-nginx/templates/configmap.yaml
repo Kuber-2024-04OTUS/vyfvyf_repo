@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-nginx-conf
+  namespace: {{ .Values.namespace }}
+data:
+  {{- toYaml .Values.nginx.nginxConfigs | nindent 2 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-custom-files
+  namespace: {{ .Values.namespace }}
+data:
+  {{- toYaml .Values.nginx.customFiles | nindent 2 }}

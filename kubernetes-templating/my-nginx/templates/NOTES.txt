@@ -1,0 +1,7 @@
+{{ .Chart.Name }} установлен.
+
+Страницы доступны по следующим адресам:
+
+http://{{ .Values.host }}
+http://{{ .Values.host }}/metrics.html
+http://{{ .Values.host }}/conf/test
